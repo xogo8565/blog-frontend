@@ -81,6 +81,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/categories": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 공개 카테고리 트리
+     * @description 공개(visible) 카테고리만 관리자 순서대로 돌려줍니다. 상위 카테고리의 articleCount는 하위 카테고리의 발행 글을 포함합니다.
+     */
+    get: operations["getCategoryTree"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/articles/{articleId}/comments": {
     parameters: {
       query?: never;
@@ -255,6 +275,95 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/admin/articles/{articleId}/category": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * 글 카테고리 지정
+     * @description 글을 카테고리 하나에 넣거나 categoryId null로 미분류로 돌립니다. 없는 카테고리면 404 CATEGORY_NOT_FOUND입니다.
+     */
+    put: operations["replaceArticleCategory"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/categories": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * 전체 카테고리 목록 (숨김 포함)
+     * @description 상위 카테고리 순서대로, 각 상위 카테고리 바로 뒤에 그 하위 카테고리를 순서대로 담은 평면 목록입니다.
+     */
+    get: operations["listAdminCategories"];
+    put?: never;
+    /**
+     * 카테고리 생성
+     * @description 같은 부모 안에서 맨 뒤 순서로 만듭니다. 하위 카테고리의 부모로 지정하면 409 CATEGORY_DEPTH_EXCEEDED입니다.
+     */
+    post: operations["createCategory"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/categories/order": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * 같은 부모 안의 순서 교체
+     * @description parentId 아래 카테고리 전체를 보낸 순서로 바꿉니다. 목록이 현재 형제와 정확히 같지 않으면 400 VALIDATION_FAILED입니다.
+     */
+    put: operations["reorderCategories"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/categories/{categoryId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * 카테고리 수정
+     * @description 이름, 슬러그, 설명, 부모, 공개 여부를 바꿉니다. 하위 카테고리가 있는 카테고리를 다른 카테고리 아래로 옮기면 409 CATEGORY_DEPTH_EXCEEDED입니다.
+     */
+    put: operations["updateCategory"];
+    post?: never;
+    /**
+     * 카테고리 삭제
+     * @description 하위 카테고리가 있으면 삭제하지 않고 409 CATEGORY_NOT_EMPTY로 응답합니다.
+     *     글(상태 무관)이 있으면 moveTo로 옮길 카테고리를 보내야 하며, 없으면 409 CATEGORY_NOT_EMPTY입니다.
+     */
+    delete: operations["deleteCategory"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/admin/media/upload-urls": {
     parameters: {
       query?: never;
@@ -414,6 +523,65 @@ export interface components {
       /** @description 이 태그가 붙은 발행 글 수 */
       articleCount: number;
     };
+    /**
+     * @description 주소에 쓰는 식별자. 영문 소문자, 숫자, 하이픈
+     * @example architecture
+     */
+    CategorySlug: string;
+    CategoryRef: {
+      id: components["schemas"]["Id"];
+      name: string;
+      slug: components["schemas"]["CategorySlug"];
+    };
+    /** @description 글이 속한 카테고리와 그 상위 카테고리 */
+    CategoryPath: {
+      id: components["schemas"]["Id"];
+      name: string;
+      slug: components["schemas"]["CategorySlug"];
+      /** @description 상위 카테고리에 바로 속한 글이면 null */
+      parent: components["schemas"]["CategoryRef"] | null;
+    };
+    CategoryNode: {
+      id: components["schemas"]["Id"];
+      name: string;
+      slug: components["schemas"]["CategorySlug"];
+      description: string | null;
+      /** @description 발행 글 수. 상위 카테고리는 하위 카테고리의 글을 포함합니다 */
+      articleCount: number;
+      /** @description 하위 카테고리. 카테고리는 2단계까지이므로 하위 카테고리의 children은 항상 []입니다 */
+      children: components["schemas"]["CategoryNode"][];
+    };
+    AdminCategory: {
+      id: components["schemas"]["Id"];
+      name: string;
+      slug: components["schemas"]["CategorySlug"];
+      description: string | null;
+      /** @description 상위 카테고리면 null */
+      parentId: components["schemas"]["Id"] | null;
+      /** @description false면 공개 트리와 메뉴에서 숨깁니다. 글 상세의 카테고리 표시는 유지됩니다 */
+      visible: boolean;
+      /** @description 같은 부모 안의 순서 (0부터) */
+      position: number;
+      /** @description 이 카테고리에 바로 속한 글 수 (상태 무관) */
+      articleCount: number;
+    };
+    CategoryUpsertRequest: {
+      name: string;
+      slug: components["schemas"]["CategorySlug"];
+      description: string | null;
+      /** @description 상위 카테고리로 만들려면 null */
+      parentId: components["schemas"]["Id"] | null;
+      visible: boolean;
+    };
+    CategoryOrderRequest: {
+      /** @description 상위 카테고리끼리의 순서면 null */
+      parentId: components["schemas"]["Id"] | null;
+      categoryIds: components["schemas"]["Id"][];
+    };
+    ArticleCategoryUpdateRequest: {
+      /** @description 미분류로 돌리려면 null */
+      categoryId: components["schemas"]["Id"] | null;
+    };
     ArticleSummary: {
       id: components["schemas"]["Id"];
       title: string;
@@ -422,6 +590,8 @@ export interface components {
       /** Format: uri */
       thumbnailUrl: string | null;
       tags: components["schemas"]["TagRef"][];
+      /** @description 미분류 글이면 null */
+      category: components["schemas"]["CategoryPath"] | null;
       /** Format: date-time */
       publishedAt: string;
     };
@@ -437,6 +607,8 @@ export interface components {
       /** Format: uri */
       thumbnailUrl: string | null;
       tags: components["schemas"]["TagRef"][];
+      /** @description 미분류 글이면 null */
+      category: components["schemas"]["CategoryPath"] | null;
       /** Format: date-time */
       publishedAt: string;
       /** Format: date-time */
@@ -469,6 +641,8 @@ export interface components {
       /** @description 한 번도 발행하지 않았으면 null */
       published: components["schemas"]["ArticleContents"] | null;
       tags: components["schemas"]["TagRef"][];
+      /** @description 미분류 글이면 null */
+      category: components["schemas"]["CategoryPath"] | null;
       /** @description 낙관적 락 버전. 초안 저장 때 그대로 돌려보냅니다 */
       version: number;
       /** Format: date-time */
@@ -578,12 +752,16 @@ export interface components {
       | "ARTICLE_NOT_FOUND"
       | "COMMENT_NOT_FOUND"
       | "MEDIA_NOT_FOUND"
+      | "CATEGORY_NOT_FOUND"
       | "ARTICLE_NOT_PUBLISHABLE"
       | "INVALID_STATE_TRANSITION"
       | "ARTICLE_VERSION_CONFLICT"
       | "ARTICLE_DELETED"
       | "COMMENT_DEPTH_EXCEEDED"
       | "MEDIA_NOT_UPLOADED"
+      | "CATEGORY_SLUG_DUPLICATED"
+      | "CATEGORY_NOT_EMPTY"
+      | "CATEGORY_DEPTH_EXCEEDED"
       | "RATE_LIMITED"
       | "INTERNAL_ERROR";
     FieldError: {
@@ -653,7 +831,7 @@ export interface components {
         "application/problem+json": components["schemas"]["Problem"];
       };
     };
-    /** @description 대상 없음 (ARTICLE_NOT_FOUND, COMMENT_NOT_FOUND, MEDIA_NOT_FOUND) */
+    /** @description 대상 없음 (ARTICLE_NOT_FOUND, COMMENT_NOT_FOUND, MEDIA_NOT_FOUND, CATEGORY_NOT_FOUND) */
     NotFound: {
       headers: {
         [name: string]: unknown;
@@ -662,7 +840,7 @@ export interface components {
         "application/problem+json": components["schemas"]["Problem"];
       };
     };
-    /** @description 도메인 규칙 위반 (ARTICLE_NOT_PUBLISHABLE, INVALID_STATE_TRANSITION, ARTICLE_VERSION_CONFLICT, ARTICLE_DELETED, COMMENT_DEPTH_EXCEEDED, MEDIA_NOT_UPLOADED) */
+    /** @description 도메인 규칙 위반 (ARTICLE_NOT_PUBLISHABLE, INVALID_STATE_TRANSITION, ARTICLE_VERSION_CONFLICT, ARTICLE_DELETED, COMMENT_DEPTH_EXCEEDED, MEDIA_NOT_UPLOADED, CATEGORY_SLUG_DUPLICATED, CATEGORY_NOT_EMPTY, CATEGORY_DEPTH_EXCEEDED) */
     Conflict: {
       headers: {
         [name: string]: unknown;
@@ -700,6 +878,7 @@ export interface components {
     ArticleId: components["schemas"]["Id"];
     CommentId: components["schemas"]["Id"];
     MediaId: components["schemas"]["Id"];
+    CategoryId: components["schemas"]["Id"];
   };
   requestBodies: never;
   headers: {
@@ -720,6 +899,8 @@ export interface operations {
         size?: components["parameters"]["Size"];
         /** @description 태그 이름으로 거르기 */
         tag?: string;
+        /** @description 카테고리 슬러그로 거르기. 상위 카테고리면 하위 카테고리의 글을 포함합니다. tag와 함께 보내면 둘 다 만족하는 글만 돌려줍니다 */
+        category?: components["schemas"]["CategorySlug"];
       };
       header?: never;
       path?: never;
@@ -827,6 +1008,47 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["TagCount"][];
+        };
+      };
+    };
+  };
+  getCategoryTree: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 상위 카테고리 목록과 각 하위 카테고리 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example [
+           *       {
+           *         "id": 371230000000101,
+           *         "name": "백엔드",
+           *         "slug": "backend",
+           *         "description": "Spring과 서버 아키텍처에서 내린 결정을 기록합니다.",
+           *         "articleCount": 5,
+           *         "children": [
+           *           {
+           *             "id": 371230000000102,
+           *             "name": "아키텍처",
+           *             "slug": "architecture",
+           *             "description": null,
+           *             "articleCount": 3,
+           *             "children": []
+           *           }
+           *         ]
+           *       }
+           *     ]
+           */
+          "application/json": components["schemas"]["CategoryNode"][];
         };
       };
     };
@@ -1166,6 +1388,203 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["AdminArticle"];
         };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  replaceArticleCategory: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        articleId: components["parameters"]["ArticleId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "categoryId": 371230000000102
+         *     }
+         */
+        "application/json": components["schemas"]["ArticleCategoryUpdateRequest"];
+      };
+    };
+    responses: {
+      /** @description 카테고리가 바뀐 글 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminArticle"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  listAdminCategories: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 카테고리 목록 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminCategory"][];
+        };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+    };
+  };
+  createCategory: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "name": "아키텍처",
+         *       "slug": "architecture",
+         *       "description": "모듈 경계와 API 계약을 정하는 결정을 기록합니다.",
+         *       "parentId": 371230000000101,
+         *       "visible": true
+         *     }
+         */
+        "application/json": components["schemas"]["CategoryUpsertRequest"];
+      };
+    };
+    responses: {
+      /** @description 생성된 카테고리 */
+      201: {
+        headers: {
+          /**
+           * @description 생성된 카테고리의 관리자 경로
+           * @example /api/v1/admin/categories/371230000000102
+           */
+          Location?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminCategory"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  reorderCategories: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *       "parentId": null,
+         *       "categoryIds": [
+         *         371230000000104,
+         *         371230000000101
+         *       ]
+         *     }
+         */
+        "application/json": components["schemas"]["CategoryOrderRequest"];
+      };
+    };
+    responses: {
+      /** @description 순서가 반영된 전체 카테고리 목록 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminCategory"][];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  updateCategory: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        categoryId: components["parameters"]["CategoryId"];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CategoryUpsertRequest"];
+      };
+    };
+    responses: {
+      /** @description 수정된 카테고리 */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminCategory"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  deleteCategory: {
+    parameters: {
+      query?: {
+        /** @description 글을 옮길 카테고리 ID. 하위 카테고리가 없는 카테고리여야 합니다 */
+        moveTo?: components["schemas"]["Id"];
+      };
+      header?: never;
+      path: {
+        categoryId: components["parameters"]["CategoryId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description 삭제됨 */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthorized"];
