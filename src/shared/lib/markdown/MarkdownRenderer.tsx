@@ -210,7 +210,7 @@ export function MarkdownRenderer({ content }: { content: string }) {
           }
           case "code":
             return (
-              <pre key={index}>
+              <pre data-language={block.language || undefined} key={index}>
                 <code className={block.language ? `language-${block.language}` : undefined}>
                   {block.value}
                 </code>

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { ArticleCollection } from "@/features/article/components/ArticleCollection";
 import { ArticleLoading } from "@/features/article/components/ArticleLoading";
 import { ArticleSearchForm } from "@/features/article/components/ArticleSearchForm";
-import { searchPublishedArticles } from "@/features/article/api/articles";
+import { listTopTags, searchPublishedArticles } from "@/features/article/api/articles";
 import { toUserMessage } from "@/shared/api/errors";
 
 export const metadata: Metadata = {
@@ -40,6 +40,7 @@ async function SearchResults({ searchParams }: { searchParams: SearchParams }) {
   const nextHref = page?.nextCursor
     ? `/search?${new URLSearchParams({ q: query, cursor: page.nextCursor }).toString()}`
     : null;
+  const suggestions = !message && !page?.items.length ? await listTopTags(6) : [];
 
   return (
     <main className="page-shell" id="main-content">
@@ -54,9 +55,12 @@ async function SearchResults({ searchParams }: { searchParams: SearchParams }) {
       {query && <p className="search-summary">“{query}” 검색 결과</p>}
       <ArticleCollection
         emptyDescription={
-          query ? "검색어를 바꾸거나 태그를 둘러보세요." : "검색어를 입력해 글을 찾아보세요."
+          query ? "다른 검색어로 다시 찾아보세요." : "검색어를 입력해 글을 찾아보세요."
         }
+        emptySuggestions={suggestions}
         emptyTitle={query ? "검색 결과가 없습니다" : "찾고 싶은 주제를 입력해 주세요"}
+        firstHref={cursor && query ? `/search?${queryString.toString()}` : null}
+        highlight={query || undefined}
         message={message}
         nextHref={nextHref}
         page={page}

@@ -7,20 +7,34 @@ export type ArticleSummaryPage = components["schemas"]["ArticleSummaryPage"];
 export type ArticleSummary = components["schemas"]["ArticleSummary"];
 export type ArticleDetail = components["schemas"]["ArticleDetail"];
 export type TagCount = components["schemas"]["TagCount"];
+export type CategoryPath = components["schemas"]["CategoryPath"];
 
 export type ArticlePageResult = {
   page: ArticleSummaryPage | null;
   message: string | null;
 };
 
-export async function listPublishedArticles(cursor: string | null, tag: string | null) {
+export type ArticleFilter = {
+  tag?: string;
+  /** 카테고리 슬러그. 상위 카테고리면 하위 카테고리 글을 포함한다. */
+  category?: string;
+};
+
+export async function listPublishedArticles(cursor: string | null, filter: ArticleFilter = {}) {
   "use cache";
   cacheLife("minutes");
-  cacheTag("articles");
+  cacheTag("articles", "categories");
 
   try {
     const { data, error } = await api.GET("/articles", {
-      params: { query: { cursor: cursor ?? undefined, size: 10, tag: tag ?? undefined } },
+      params: {
+        query: {
+          cursor: cursor ?? undefined,
+          size: 10,
+          tag: filter.tag,
+          category: filter.category,
+        },
+      },
     });
 
     return {

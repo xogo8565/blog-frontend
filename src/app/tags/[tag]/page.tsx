@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ArticleCollection } from "@/features/article/components/ArticleCollection";
 import { ArticleLoading } from "@/features/article/components/ArticleLoading";
-import { listPublishedArticles } from "@/features/article/api/articles";
+import { listPublishedArticles, listTopTags } from "@/features/article/api/articles";
 
 type Params = Promise<{ tag: string }>;
 type SearchParams = Promise<{ cursor?: string | string[] }>;
@@ -33,10 +33,15 @@ async function TagPageContent({
   if (!normalizedTag) notFound();
 
   const cursor = firstValue(query.cursor);
-  const result = await listPublishedArticles(cursor, normalizedTag);
+  const result = await listPublishedArticles(cursor, { tag: normalizedTag });
+  const tagHref = `/tags/${encodeURIComponent(normalizedTag)}`;
   const nextHref = result.page?.nextCursor
-    ? `/tags/${encodeURIComponent(normalizedTag)}?cursor=${encodeURIComponent(result.page.nextCursor)}`
+    ? `${tagHref}?cursor=${encodeURIComponent(result.page.nextCursor)}`
     : null;
+  const suggestions =
+    !result.message && !result.page?.items.length
+      ? (await listTopTags(6)).filter((topTag) => topTag.name !== normalizedTag)
+      : [];
 
   return (
     <main className="page-shell" id="main-content">
@@ -49,16 +54,14 @@ async function TagPageContent({
         <p>이 태그가 붙은 발행 글을 모았습니다.</p>
       </div>
       <ArticleCollection
-        emptyDescription="다른 태그나 최신 글을 둘러보세요."
+        emptyDescription="다른 주제나 최신 글을 둘러보세요."
+        emptySuggestions={suggestions}
         emptyTitle="이 태그의 글이 없습니다"
+        firstHref={cursor ? tagHref : null}
         message={result.message}
         nextHref={nextHref}
         page={result.page}
-        retryHref={
-          cursor
-            ? `/tags/${encodeURIComponent(normalizedTag)}?cursor=${encodeURIComponent(cursor)}`
-            : `/tags/${encodeURIComponent(normalizedTag)}`
-        }
+        retryHref={cursor ? `${tagHref}?cursor=${encodeURIComponent(cursor)}` : tagHref}
       />
     </main>
   );

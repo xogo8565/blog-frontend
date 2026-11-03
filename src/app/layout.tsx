@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "./providers";
+import { listPublishedArticles, listTopTags } from "@/features/article/api/articles";
+import { listCategoryTree } from "@/features/category/api/categories";
 import { SiteFooter } from "@/shared/ui/SiteFooter";
 import { SiteHeader } from "@/shared/ui/SiteHeader";
 import "./globals.css";
@@ -9,7 +11,14 @@ export const metadata: Metadata = {
   description: "배우고 만든 것을 차분히 기록하는 기술 블로그입니다.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const [categories, tags, recent] = await Promise.all([
+    listCategoryTree(),
+    listTopTags(10),
+    listPublishedArticles(null),
+  ]);
+  const recentArticles = (recent.page?.items ?? []).slice(0, 4);
+
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
@@ -17,9 +26,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <a className="skip-link" href="#main-content">
             본문으로 건너뛰기
           </a>
-          <SiteHeader />
+          <SiteHeader categories={categories} />
           <div className="flex-1">{children}</div>
-          <SiteFooter />
+          <SiteFooter categories={categories} recentArticles={recentArticles} tags={tags} />
         </Providers>
       </body>
     </html>
