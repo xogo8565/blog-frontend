@@ -1,0 +1,6 @@
+#!/bin/sh
+# 커밋 전에 포맷을 검사한다. 설치: git config core.hooksPath githooks
+if ! pnpm format:check > /dev/null; then
+  echo "포맷 검사에 실패했습니다. pnpm format 을 실행한 뒤 다시 커밋하세요."
+  exit 1
+fi
