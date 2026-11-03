@@ -29,7 +29,7 @@
 ## 구조와 의존 규칙
 
 - `src/app/`: 라우트 파일만 둔다(page, layout, route handler, metadata). 비즈니스 로직을 넣지 않는다
-- `src/features/{article,comment,auth,editor,media}/`: 기능별 API 호출, 컴포넌트, 훅
+- `src/features/{article,category,comment,auth,editor,media}/`: 기능별 API 호출, 컴포넌트, 훅
 - `src/shared/{api,ui,lib}/`: API 클라이언트, 공통 UI, 마크다운 렌더러·날짜 포맷
 - 의존 방향은 `app` → `features` → `shared` 하나뿐이다. feature끼리 import하지 않는다. 같이 쓸 코드는 `shared`로 내린다
 - 경계 규칙은 ESLint가 검사한다. 규칙을 끄거나 예외를 추가해서 통과시키지 않는다
@@ -109,7 +109,7 @@
 - 형식은 `type(scope): 요약`이다. 요약은 한국어 50자 이내이고 끝에 마침표를 찍지 않는다. 예: `feat(editor): 이미지 붙여넣기 업로드`
 - 본문에는 무엇을 왜 바꿨는지 쓴다. 어떻게 바꿨는지는 코드가 보여준다
 - type: `feat`, `fix`, `refactor`, `test`, `docs`, `build`, `ci`, `chore`, `perf`
-- scope: `article`, `comment`, `auth`, `editor`, `media`, `shared`, `api`, `build`
+- scope: `article`, `category`, `comment`, `auth`, `editor`, `media`, `shared`, `api`, `build`
 - API 사본 동기화는 단독 커밋으로 한다: `chore(api): openapi 사본 동기화`, 본문에 `backend: <커밋 SHA>`
 
 ### PR과 머지

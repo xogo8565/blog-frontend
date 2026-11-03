@@ -25,18 +25,34 @@ pnpm gen:api
 
 ## 공개 콘텐츠 API
 
-| 사용자 동작  | 메서드·경로                          | 주요 규칙                                                                     |
-| ------------ | ------------------------------------ | ----------------------------------------------------------------------------- |
-| 최신 글 목록 | `GET /articles`                      | PUBLISHED만 반환, `publishedAt` 내림차순, 기본 크기 10, 커서 기반             |
-| 태그별 글    | `GET /articles?tag=...`              | 목록 API의 태그 필터를 사용                                                   |
-| 글 검색      | `GET /articles/search?q=...`         | 제목·본문 검색, 검색어 2~50자, 발행일 내림차순                                |
-| 글 상세      | `GET /articles/{articleId}`          | DRAFT·DELETED를 포함해 공개되지 않은 글은 404                                 |
-| 인기 태그    | `GET /tags/top?n=...`                | 홈에서 상위 8개를 요청한다. 비거나 실패하면 현재 글 페이지의 태그로 대체한다. |
-| 댓글 목록    | `GET /articles/{articleId}/comments` | 공개 가능한 댓글만 반환. 댓글 UX 단계에서 연결                                |
+| 사용자 동작   | 메서드·경로                          | 주요 규칙                                                                                                                                                      |
+| ------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 최신 글 목록  | `GET /articles`                      | PUBLISHED만 반환, `publishedAt` 내림차순, 기본 크기 10, 커서 기반                                                                                              |
+| 태그별 글     | `GET /articles?tag=...`              | 목록 API의 태그 필터를 사용                                                                                                                                    |
+| 카테고리 글   | `GET /articles?category=...`         | 카테고리 슬러그 필터. 상위 슬러그면 하위 카테고리 글을 포함한다. 카테고리 페이지와 상세의 이어 읽기에서 사용                                                   |
+| 카테고리 트리 | `GET /categories`                    | 공개 카테고리 2단계 트리와 발행 글 수. 루트 레이아웃(헤더·푸터), 홈 주제 카드·레일, 카테고리 페이지, 상세 이동 경로에서 사용. 실패하면 빈 배열로 영역을 생략   |
+| 글 검색       | `GET /articles/search?q=...`         | 제목·본문 검색, 검색어 2~50자, 발행일 내림차순                                                                                                                 |
+| 글 상세       | `GET /articles/{articleId}`          | DRAFT·DELETED를 포함해 공개되지 않은 글은 404                                                                                                                  |
+| 인기 태그     | `GET /tags/top?n=...`                | 홈에서 상위 8개를 요청한다. 비거나 실패하면 현재 글 페이지의 태그로 대체한다. 검색·태그 결과가 비면 상위 6개를 추천 주제로 요청하고, 실패하면 추천을 생략한다. |
+| 댓글 목록     | `GET /articles/{articleId}/comments` | 공개 가능한 댓글만 반환. 댓글 UX 단계에서 연결                                                                                                                 |
 
-목록 응답은 `ArticleSummaryPage`를 사용한다. `items`에는 제목, 요약, 선택적 썸네일 URL, 태그, 발행 일시가 포함되고, `nextCursor`는 다음 페이지가 없으면 `null`이다. 커서는 내용을 해석하지 않고 다음 요청에 그대로 보낸다.
+목록 응답은 `ArticleSummaryPage`를 사용한다. `items`에는 제목, 요약, 선택적 썸네일 URL, 태그, 카테고리 경로(`CategoryPath`, 미분류면 `null`), 발행 일시가 포함되고, `nextCursor`는 다음 페이지가 없으면 `null`이다. 커서는 내용을 해석하지 않고 다음 요청에 그대로 보낸다.
 
 상세 응답은 `ArticleDetail`을 사용한다. 본문은 Markdown 문자열이다. raw HTML을 실행하지 않고, 화면의 지원 문법은 `frontend.md` 및 구현된 공용 Markdown 렌더러와 일치시킨다.
+
+## 관리자 카테고리 API
+
+| 사용자 동작 | 메서드·경로                                      | 화면 처리                                                                                           |
+| ----------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| 권한 확인   | `GET /me`                                        | 401이면 로그인 안내, `role`이 ADMIN이 아니면 권한 안내 (`AdminGuard`)                               |
+| 목록        | `GET /admin/categories`                          | 숨김 포함 평면 목록. 상위 뒤에 하위를 묶어 표로 보여준다                                            |
+| 추가·수정   | `POST /admin/categories`, `PUT .../{categoryId}` | `CATEGORY_SLUG_DUPLICATED`는 슬러그 필드 오류로, 그 밖의 오류는 상태 문구로 보여준다                |
+| 순서 변경   | `PUT /admin/categories/order`                    | 같은 부모의 형제 ID 전체를 바뀐 순서로 보낸다                                                       |
+| 삭제        | `DELETE /admin/categories/{categoryId}`          | 하위가 있으면 화면에서 막고, 글이 있으면 `moveTo`를 함께 보낸다. `CATEGORY_NOT_EMPTY`는 문구로 안내 |
+
+- 요청은 `src/features/category/api/adminCategories.ts`의 TanStack Query 훅으로만 보낸다. 실패 응답은 Problem 객체를 그대로 던지고 화면은 `toUserMessage()`로 문구를 만든다.
+- 변경에 성공하면 목록 쿼리를 무효화하고 `revalidateCategoryPages(accessToken)` Server Action을 호출한다. Server Action은 그 토큰으로 `/me`를 호출해 ADMIN일 때만 `updateTag('categories')`, `updateTag('articles')`를 실행한다.
+- 글의 카테고리 지정(`PUT /admin/articles/{articleId}/category`)은 계약만 있고, 편집기 단계에서 연결한다.
 
 ## 인증 API와 토큰 취급
 
@@ -50,7 +66,7 @@ pnpm gen:api
 ## 커서와 캐시
 
 - 커서와 검색어는 URL 쿼리에서 읽고 캐시 함수의 인자로 전달한다. 캐시 함수 안에서 `searchParams`, cookies, headers를 직접 읽지 않는다.
-- 공개 목록·검색·태그·상세 캐시는 `frontend.md`의 `cacheLife('minutes')` 정책과 `articles` 태그를 따른다.
+- 공개 목록·검색·태그·카테고리·상세 캐시는 `frontend.md`의 `cacheLife('minutes')` 정책과 `articles` 태그를 따른다. 카테고리 트리와 글 목록에는 `categories` 태그를 함께 단다.
 - 상세 글은 추가로 `article:{id}` 태그를 사용한다. 발행·발행 취소·삭제·복구 Server Action을 만들 때 관련 태그를 재검증한다.
 - 사용자별 정보, 인증 응답, 초안, 관리자 목록은 공개 캐시에 넣지 않는다.
 

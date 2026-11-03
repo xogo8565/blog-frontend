@@ -36,7 +36,7 @@ pnpm dev
 frontend/
 ├─ src/
 │  ├─ app/          # 라우트 파일만
-│  ├─ features/     # article, comment, auth, editor, media (서로 import 금지)
+│  ├─ features/     # article, category, comment, auth, editor, media (서로 import 금지)
 │  └─ shared/       # api(클라이언트, 생성 타입, 에러 문구), ui, lib
 ├─ openapi/         # 백엔드 openapi.yaml의 사본
 ├─ tests/e2e/       # Playwright
