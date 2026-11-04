@@ -1,0 +1,7 @@
+.next
+node_modules
+pnpm-lock.yaml
+openapi/openapi.yaml
+coverage
+playwright-report
+test-results

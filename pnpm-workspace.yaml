@@ -1,0 +1,6 @@
+# 공급망 보호: 게시된 지 7일(10080분)이 안 된 패키지 버전은 설치하지 않는다.
+minimumReleaseAge: 10080
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
